@@ -1,0 +1,28 @@
+<package>
+ <name>dumbo_passive_force_control</name>
+  <version>0.1.0</version>
+  <description>
+    Passive force-torque control for Dumbo.
+  </description>
+  <license>BSD</license>
+
+  <url type="website">http://wiki.ros.org/dumbo_force_control_node</url>
+
+  <author email="fevb@kth.se">Francisco Vina</author>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>brics_actuator</build_depend>
+  <build_depend>control_msgs</build_depend>
+  <build_depend>kdl_wrapper</build_depend>
+  <build_depend>tf</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>brics_actuator</run_depend>
+  <run_depend>control_msgs</run_depend>
+  <run_depend>kdl_wrapper</run_depend>
+  <run_depend>tf</run_depend>
+
+</package>

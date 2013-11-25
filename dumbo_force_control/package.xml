@@ -1,0 +1,21 @@
+<package>
+  <name>dumbo_force_control</name>
+  <version>0.1.0</version>
+  <description>
+    Force control applications and force control node class for CVAP's Dumbo robot.
+  </description>
+  <license>BSD</license>
+
+  <url>http://wiki.ros.org/dumbo_force_control</url>
+
+  <author email="fevb@kth.se">Francisco Vina</author>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <run_depend>dumbo_passive_force_control</run_depend>
+
+  <export>
+    <metapackage/>
+  </export>
+</package>

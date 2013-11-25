@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<launch>
+
+  <node name="dumbo_left_arm_passive_force_control" pkg="dumbo_passive_force_control" type="dumbo_passive_force_control" cwd="node" respawn="false" output="screen" >
+    <rosparam command="load" file="$(find dumbo_passive_force_control)/config/left_arm_passive_force_control.yaml" />
+  </node>
+</launch>
