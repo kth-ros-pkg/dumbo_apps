@@ -7,7 +7,7 @@ find_package(Eigen REQUIRED)
 catkin_package(
   DEPENDS
   CATKIN_DEPENDS roscpp brics_actuator control_msgs kdl_wrapper tf
-  INCLUDE_DIRS include
+  INCLUDE_DIRS
   LIBRARIES ${PROJECT_NAME} 
 )
 
