@@ -73,9 +73,9 @@ public:
 		getROSParameters();
 		if(isInitialized())
 		{
-			topicPub_CommandVel_ = n_.advertise<brics_actuator::JointVelocities>("/" + m_arm_select + "_arm_controller/command_vel", 1);
-			topicSub_JointState_ = n_.subscribe("/" + m_arm_select + "_arm_controller/state", 1, &PassiveForceControlNode::topicCallback_joint_states, this);
-			topicSub_FT_compensated_ = n_.subscribe("/" + m_arm_select + "_arm_ft_sensor/ft_compensated", 1, &PassiveForceControlNode::topicCallback_ft_compensated, this);
+			topicPub_CommandVel_ = n_.advertise<brics_actuator::JointVelocities>("command_vel", 1);
+			topicSub_JointState_ = n_.subscribe("state", 1, &PassiveForceControlNode::topicCallback_joint_states, this);
+			topicSub_FT_compensated_ = n_.subscribe("ft_compensated", 1, &PassiveForceControlNode::topicCallback_ft_compensated, this);
 		}
 
 		tf_listener_ = new tf::TransformListener();
@@ -422,12 +422,22 @@ public:
 
 		else if(!m_received_ft)
 		{
+		  static ros::Time t = ros::Time::now();
+		  if((ros::Time::now()-t).toSec()>2.0)
+		    {
 			ROS_ERROR("Haven't received FT measurements");
+			t = ros::Time::now();
+		    }
 		}
 
 		else if(!m_received_js)
 		{
+		  static ros::Time t = ros::Time::now();
+		  if((ros::Time::now()-t).toSec()>2.0)
+		    {
 			ROS_ERROR("Haven't received joint states");
+			t = ros::Time::now();
+		    }
 		}
 
 	}

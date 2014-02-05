@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<launch>
+
+  <!-- this argument can be either 'left' or 'right' to select the appropriate arm -->
+  <arg name="arm" default="left"/>
+
+  <node name="$(arg arm)_arm_passive_force_control" pkg="dumbo_passive_force_control" type="dumbo_passive_force_control" cwd="node" respawn="false" output="screen" >
+    <rosparam command="load" file="$(find dumbo_passive_force_control)/config/$(arg arm)_arm_passive_force_control.yaml" />
+    <remap from="/$(arg arm)_arm_passive_force_control/command_vel" to="/$(arg arm)_arm_controller/command_vel" />
+    <remap from="/$(arg arm)_arm_passive_force_control/state" to="/$(arg arm)_arm_controller/state" />
+    <remap from="/$(arg arm)_arm_passive_force_control/ft_compensated" to="/$(arg arm)_ft_sensor/ft_compensated" />
+  </node>
+</launch>
