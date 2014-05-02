@@ -6,3 +6,6 @@ force_gain: 0.002
 torque_gain: 0.03
 v_limit: 0.08  #linear velocity limit [m/s] 
 w_limit: 0.3 # angular velocity limit [rad/s]
+
+# cutoff frequency for the joint vel low pass filter [Hz]
+cutoff_freq: 2.0

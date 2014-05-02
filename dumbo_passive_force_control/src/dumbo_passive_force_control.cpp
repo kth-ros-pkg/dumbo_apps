@@ -42,6 +42,7 @@
 #include <kdl_wrapper/kdl_wrapper.h>
 #include <tf/tf.h>
 #include <tf/transform_listener.h>
+#include <fir_filter/filt.h>
 
 
 class PassiveForceControlNode
@@ -85,6 +86,8 @@ public:
 	~PassiveForceControlNode()
 	{
 		delete tf_listener_;
+		for(unsigned int i=0; i<m_DOF; i++)
+			delete m_filters[i];
 	}
 
 
@@ -224,6 +227,26 @@ public:
 			}
 		}
 
+		// get the FIR low pass filter cutoff frequency
+
+		if (n_.hasParam("cutoff_freq"))
+		{
+			n_.getParam("cutoff_freq", m_cutoff_freq);
+		}
+
+		else
+		{
+			ROS_ERROR("Parameter cutoff_freq not set, shutting down node...");
+			n_.shutdown();
+			return;
+		}
+
+		// initialize the FIR filters
+		m_filters.resize(m_DOF);
+
+		for(unsigned int i = 0; i<m_DOF; i++)
+			m_filters[i] = new Filter(LPF, 4, 150, m_cutoff_freq);
+
 		m_initialized = true;
 
 	}
@@ -276,7 +299,7 @@ public:
 
 	}
 
-	bool CalculateControlSignal(std::vector<double> &joint_vel)
+	bool calculateControlSignal(std::vector<double> &joint_vel)
 	{
 		std::vector<double> vel_screw(6,0);
 		bool ret;
@@ -371,16 +394,20 @@ public:
 
 
 //		ret =  m_DumboKDL_->getInvVel(m_JointPos, vel_screw, joint_vel_, m_bound_max);
-		KDL::JntArray q_in(7);
+		KDL::JntArray q_in(m_DOF);
 		KDL::JntArray q_dot_out;
 		KDL::Twist v_in;
 		joint_vel.resize(7);
 
-		for(unsigned int i=0; i<7; i++) q_in(i) = m_joint_pos[i];
+		for(unsigned int i=0; i<m_DOF; i++) q_in(i) = m_joint_pos[i];
 		for(unsigned int i=0; i<6; i++) v_in(i) = vel_screw[i];
 
 		ret = m_dumbo_kdl_wrapper.ik_solver_vel->CartToJnt(q_in, v_in, q_dot_out);
-		for(unsigned int i=0; i<7; i++) joint_vel[i] = q_dot_out(i);
+		for(unsigned int i=0; i<m_DOF; i++) joint_vel[i] = q_dot_out(i);
+
+		// filter the joint velocities
+		for(unsigned int i=0; i<m_DOF; i++)
+			joint_vel[i] = m_filters[i]->do_sample(joint_vel[i]);
 
 		return true;
 	}
@@ -395,7 +422,7 @@ public:
 			ros::Time now = ros::Time::now();
 			if(((now - m_joint_pos_stamp).toSec()<0.2) && ((now-m_ft_compensated.header.stamp).toSec()<0.2))
 			{
-				if(CalculateControlSignal(joint_vel))
+				if(calculateControlSignal(joint_vel))
 				{
 
 					brics_actuator::JointVelocities joint_vel_msg;
@@ -462,6 +489,10 @@ private:
 	std::vector<double> m_joint_pos;
 	ros::Time m_joint_pos_stamp;
 	KDLWrapper m_dumbo_kdl_wrapper;
+
+	// FIR low pass filters for joint velocities
+	double m_cutoff_freq;
+	std::vector<Filter*> m_filters;
 
 	bool m_received_js;
 	bool m_received_ft;
