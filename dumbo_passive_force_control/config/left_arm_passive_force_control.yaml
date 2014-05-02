@@ -2,7 +2,7 @@ joint_names: [left_arm_1_joint, left_arm_2_joint, left_arm_3_joint, left_arm_4_j
 arm_select: 'left'
 loop_rate: 150.0
 timeout: 30.0 #[seconds]
-force_gain: 0.002
+force_gain: 0.004
 torque_gain: 0.03
 v_limit: 0.08  #linear velocity limit [m/s] 
 w_limit: 0.3 # angular velocity limit [rad/s]

@@ -40,9 +40,7 @@
 #include <geometry_msgs/WrenchStamped.h>
 #include <geometry_msgs/Twist.h>
 #include <kdl_wrapper/kdl_wrapper.h>
-#include <tf/tf.h>
-#include <tf/transform_listener.h>
-
+#include <kdl_conversions/kdl_msg.h>
 
 class PassiveForceControlNode
 {
@@ -58,8 +56,6 @@ public:
 	ros::Subscriber topicSub_FT_compensated_;
 
 	ros::Time last_publish_time;
-
-	tf::TransformListener *tf_listener_;
 
 
 	PassiveForceControlNode()
@@ -78,13 +74,11 @@ public:
 			topicSub_FT_compensated_ = n_.subscribe("ft_compensated", 1, &PassiveForceControlNode::topicCallback_ft_compensated, this);
 		}
 
-		tf_listener_ = new tf::TransformListener();
 
 	}
 
 	~PassiveForceControlNode()
 	{
-		delete tf_listener_;
 	}
 
 
@@ -222,6 +216,18 @@ public:
 				ROS_ERROR("Error initializing Dumbo KDL wrapper");
 				return;
 			}
+
+			if(m_dumbo_kdl_wrapper_ft.init("arm_base_link", m_arm_select+std::string("_arm_ft_sensor")) )
+			{
+				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+				m_kdl_wrapper_initialized = true;
+			}
+
+			else
+			{
+				ROS_ERROR("Error initializing Dumbo KDL wrapper with FT sensor as tip link");
+				return;
+			}
 		}
 
 		m_initialized = true;
@@ -294,59 +300,35 @@ public:
 				ROS_ERROR("Error initializing Dumbo KDL wrapper");
 				return false;
 			}
+
+			if(m_dumbo_kdl_wrapper_ft.init("arm_base_link", m_arm_select+std::string("_arm_ft_sensor")) )
+			{
+				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+				m_kdl_wrapper_initialized = true;
+			}
+
+			else
+			{
+				ROS_ERROR("Error initializing Dumbo KDL wrapper with FT sensor as tip link");
+				return false;
+			}
 		}
 
 		// first transform the FT measurement to the arm base link
-		geometry_msgs::Vector3Stamped f;
-		f.header = m_ft_compensated.header;
-		f.header.stamp = ros::Time();
-		f.vector = m_ft_compensated.wrench.force;
-		geometry_msgs::Vector3Stamped f_base;
+		KDL::JntArray q_in(m_DOF);
+		for(unsigned int i=0; i<m_DOF; i++) q_in(i) = m_joint_pos[i];
 
-		try
-		{
-			tf_listener_->transformVector("arm_base_link", f, f_base);
-		}
+		KDL::Frame F_ft;
+		m_dumbo_kdl_wrapper_ft.fk_solver_pos->JntToCart(q_in, F_ft);
 
-		catch(tf::TransformException &ex)
-		{
-			ROS_ERROR("Error transforming F/T measurement to the arm base link");
-			ROS_ERROR("%s.", ex.what());
-			return false;
-		}
+		KDL::Wrench wrench_ft_frame;
+		tf::wrenchMsgToKDL(m_ft_compensated.wrench, wrench_ft_frame);
 
-		geometry_msgs::Vector3Stamped t;
-		t.header = m_ft_compensated.header;
-		t.header.stamp = ros::Time();
-		t.vector = m_ft_compensated.wrench.torque;
-		geometry_msgs::Vector3Stamped t_base;
+		KDL::Wrench wrench_base_frame;
+		wrench_base_frame = F_ft.M*wrench_ft_frame;
 
-		try
-		{
-			tf_listener_->transformVector("arm_base_link", t, t_base);
-		}
-
-		catch(tf::TransformException &ex)
-		{
-			ROS_ERROR("Error transforming F/T measurement to the arm base link");
-			ROS_ERROR("%s.", ex.what());
-			return false;
-		}
-
-
-		// put the transformed wrench back in the member variable
-		m_ft_compensated.header.frame_id = f_base.header.frame_id;
-		m_ft_compensated.wrench.force = f_base.vector;
-		m_ft_compensated.wrench.torque = t_base.vector;
-
-
-		vel_screw[0] = m_force_gain * m_ft_compensated.wrench.force.x;
-		vel_screw[1] = m_force_gain * m_ft_compensated.wrench.force.y;
-		vel_screw[2] = m_force_gain * m_ft_compensated.wrench.force.z;
-
-		vel_screw[3] = m_torque_gain * m_ft_compensated.wrench.torque.x;
-		vel_screw[4] = m_torque_gain * m_ft_compensated.wrench.torque.y;
-		vel_screw[5] = m_torque_gain * m_ft_compensated.wrench.torque.z;
+		for(unsigned int i=0; i<3; i++) vel_screw[i] = m_force_gain * wrench_base_frame.force(i);
+		for(unsigned int i=0; i<3; i++) vel_screw[i+3] = m_torque_gain * wrench_base_frame.torque(i);
 
 		//saturate velocity screws
 		double v_scale = (sqrt(pow(vel_screw[0], 2.0) + pow(vel_screw[1], 2.0) + pow(vel_screw[2], 2.0))/m_v_limit);
@@ -370,13 +352,11 @@ public:
 		}
 
 
-//		ret =  m_DumboKDL_->getInvVel(m_JointPos, vel_screw, joint_vel_, m_bound_max);
-		KDL::JntArray q_in(7);
+
 		KDL::JntArray q_dot_out;
 		KDL::Twist v_in;
 		joint_vel.resize(7);
 
-		for(unsigned int i=0; i<7; i++) q_in(i) = m_joint_pos[i];
 		for(unsigned int i=0; i<6; i++) v_in(i) = vel_screw[i];
 
 		ret = m_dumbo_kdl_wrapper.ik_solver_vel->CartToJnt(q_in, v_in, q_dot_out);
@@ -461,7 +441,9 @@ private:
 	geometry_msgs::WrenchStamped m_ft_compensated;
 	std::vector<double> m_joint_pos;
 	ros::Time m_joint_pos_stamp;
+
 	KDLWrapper m_dumbo_kdl_wrapper;
+	KDLWrapper m_dumbo_kdl_wrapper_ft;
 
 	bool m_received_js;
 	bool m_received_ft;
