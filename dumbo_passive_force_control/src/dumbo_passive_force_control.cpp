@@ -362,6 +362,9 @@ public:
 		ret = m_dumbo_kdl_wrapper.ik_solver_vel->CartToJnt(q_in, v_in, q_dot_out);
 		for(unsigned int i=0; i<7; i++) joint_vel[i] = q_dot_out(i);
 
+//		joint_vel = std::vector<double>(7, 0.0);
+		joint_vel[6] = m_torque_gain*8*wrench_ft_frame.torque(2);
+
 		return true;
 	}
 
