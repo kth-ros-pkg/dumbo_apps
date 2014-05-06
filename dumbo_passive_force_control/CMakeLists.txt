@@ -1,11 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(dumbo_passive_force_control)
 
-find_package(catkin REQUIRED COMPONENTS roscpp brics_actuator control_msgs kdl_wrapper geometry_msgs kdl_conversions)
+find_package(catkin REQUIRED COMPONENTS roscpp brics_actuator control_msgs kdl_wrapper geometry_msgs kdl_conversions std_srvs)
 
 catkin_package(
   DEPENDS
-  CATKIN_DEPENDS roscpp brics_actuator control_msgs kdl_wrapper geometry_msgs kdl_conversions
+  CATKIN_DEPENDS roscpp brics_actuator control_msgs kdl_wrapper geometry_msgs kdl_conversions std_srvs
   INCLUDE_DIRS
   LIBRARIES 
 )

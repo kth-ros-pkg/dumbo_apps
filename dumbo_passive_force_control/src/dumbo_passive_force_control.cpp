@@ -41,6 +41,7 @@
 #include <geometry_msgs/Twist.h>
 #include <kdl_wrapper/kdl_wrapper.h>
 #include <kdl_conversions/kdl_msg.h>
+#include <std_srvs/Empty.h>
 
 class PassiveForceControlNode
 {
@@ -507,6 +508,10 @@ int main(int argc, char **argv)
 
 
 	ros::Time begin = ros::Time::now();
+
+	// make the safety monitor sleep (stop checking f/t limits)
+	std_srvs::Empty srv;
+	ros::service::call("/dumbo_safety_monitor/sleep", srv);
 
 	while(Controller.n_.ok())
 	{
