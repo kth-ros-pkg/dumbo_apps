@@ -8,6 +8,6 @@
     <rosparam command="load" file="$(find dumbo_passive_force_control)/config/$(arg arm)_arm_passive_force_control.yaml" />
     <remap from="/$(arg arm)_arm_passive_force_control/command_vel" to="/$(arg arm)_arm_controller/command_vel" />
     <remap from="/$(arg arm)_arm_passive_force_control/state" to="/$(arg arm)_arm_controller/state" />
-    <remap from="/$(arg arm)_arm_passive_force_control/ft_compensated" to="/$(arg arm)_arm_ft_sensor/ft_compensated" />
+    <remap from="/$(arg arm)_arm_passive_force_control/ft_gravity_compensated" to="/$(arg arm)_arm_ft_sensor/ft_gravity_compensated" />
   </node>
 </launch>

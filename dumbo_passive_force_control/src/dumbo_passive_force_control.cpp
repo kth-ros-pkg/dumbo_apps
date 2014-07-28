@@ -54,7 +54,7 @@ public:
 
 	/// declaration of topics to subscribe, callback is called for new messages arriving
 	ros::Subscriber topicSub_JointState_;
-	ros::Subscriber topicSub_FT_compensated_;
+    ros::Subscriber topicSub_ft_gravity_compensated_;
 
 	ros::Time last_publish_time;
 
@@ -72,7 +72,7 @@ public:
 		{
 			topicPub_CommandVel_ = n_.advertise<brics_actuator::JointVelocities>("command_vel", 1);
 			topicSub_JointState_ = n_.subscribe("state", 1, &PassiveForceControlNode::topicCallback_joint_states, this);
-			topicSub_FT_compensated_ = n_.subscribe("ft_compensated", 1, &PassiveForceControlNode::topicCallback_ft_compensated, this);
+            topicSub_ft_gravity_compensated_ = n_.subscribe("ft_gravity_compensated", 1, &PassiveForceControlNode::topicCallback_ft_gravity_compensated, this);
 		}
 
 
@@ -247,9 +247,9 @@ public:
 		return true;
 	}
 
-	void topicCallback_ft_compensated(const geometry_msgs::WrenchStampedPtr &msg)
+    void topicCallback_ft_gravity_compensated(const geometry_msgs::WrenchStampedPtr &msg)
 	{
-		m_ft_compensated = *msg;
+        m_ft_gravity_compensated = *msg;
 		m_received_ft = true;
 	}
 
@@ -323,7 +323,7 @@ public:
 		m_dumbo_kdl_wrapper_ft.fk_solver_pos->JntToCart(q_in, F_ft);
 
 		KDL::Wrench wrench_ft_frame;
-		tf::wrenchMsgToKDL(m_ft_compensated.wrench, wrench_ft_frame);
+        tf::wrenchMsgToKDL(m_ft_gravity_compensated.wrench, wrench_ft_frame);
 
 		KDL::Wrench wrench_base_frame;
 		wrench_base_frame = F_ft.M*wrench_ft_frame;
@@ -377,7 +377,7 @@ public:
 		if(m_received_ft&&m_received_js)
 		{
 			ros::Time now = ros::Time::now();
-			if(((now - m_joint_pos_stamp).toSec()<0.2) && ((now-m_ft_compensated.header.stamp).toSec()<0.2))
+            if(((now - m_joint_pos_stamp).toSec()<0.2) && ((now-m_ft_gravity_compensated.header.stamp).toSec()<0.2))
 			{
 				if(CalculateControlSignal(joint_vel))
 				{
@@ -442,7 +442,7 @@ private:
 	std::string m_arm_select;
 
 	std::vector<std::string> m_joint_names;
-	geometry_msgs::WrenchStamped m_ft_compensated;
+    geometry_msgs::WrenchStamped m_ft_gravity_compensated;
 	std::vector<double> m_joint_pos;
 	ros::Time m_joint_pos_stamp;
 
