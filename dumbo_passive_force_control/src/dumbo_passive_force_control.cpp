@@ -208,7 +208,7 @@ public:
 
 			if(m_dumbo_kdl_wrapper.init("arm_base_link", m_arm_select+std::string("_arm_7_link")) )
 			{
-				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+                m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(100.0);
 				m_kdl_wrapper_initialized = true;
 			}
 
@@ -220,7 +220,7 @@ public:
 
 			if(m_dumbo_kdl_wrapper_ft.init("arm_base_link", m_arm_select+std::string("_arm_ft_sensor")) )
 			{
-				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+                m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(100.0);
 				m_kdl_wrapper_initialized = true;
 			}
 
@@ -292,7 +292,7 @@ public:
 		{
 			if(m_dumbo_kdl_wrapper.init("arm_base_link", m_arm_select+std::string("_arm_7_link")) )
 			{
-				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+                m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(100.0);
 				m_kdl_wrapper_initialized = true;
 			}
 
@@ -304,7 +304,7 @@ public:
 
 			if(m_dumbo_kdl_wrapper_ft.init("arm_base_link", m_arm_select+std::string("_arm_ft_sensor")) )
 			{
-				m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(0.3);
+                m_dumbo_kdl_wrapper.ik_solver_vel->setLambda(100.0);
 				m_kdl_wrapper_initialized = true;
 			}
 
