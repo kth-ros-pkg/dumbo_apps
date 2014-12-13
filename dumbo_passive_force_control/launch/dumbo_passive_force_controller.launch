@@ -10,4 +10,5 @@
     <remap from="/$(arg arm)_arm_passive_force_control/ft_gravity_compensated" to="/$(arg arm)_arm_ft_sensor/gravity_compensation/ft_compensated" />
   </node>
 
+
 </launch>

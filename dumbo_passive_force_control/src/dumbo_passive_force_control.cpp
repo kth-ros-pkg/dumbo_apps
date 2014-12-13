@@ -34,6 +34,7 @@
 */
 
 #include <ros/ros.h>
+#include <signal.h>
 #include <std_msgs/Float64MultiArray.h>
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Vector3Stamped.h>
@@ -93,6 +94,7 @@ public:
             {
                 ROS_ERROR("Error stopping joint trajectory controller and starting joint velocity controller");
             }
+
 		}
 
 
@@ -100,6 +102,11 @@ public:
 
 	~PassiveForceControlNode()
 	{
+        restoreControllers();
+    }
+
+    void restoreControllers()
+    {
         // restart joint trajectory controller and stop joint velocity controller
         controller_manager_msgs::SwitchController switch_controller_srv;
         switch_controller_srv.request.strictness = switch_controller_srv.request.STRICT;
@@ -112,9 +119,11 @@ public:
 
         if(!switch_controller_srv.response.ok)
         {
-            ROS_ERROR("Error stopping joint trajectory controller and starting joint velocity controller");
+            ROS_ERROR("Error stopping joint velocity controller and starting joint trajectory controller");
         }
-	}
+
+        n_.shutdown();
+    }
 
 
 	bool isInitialized()
@@ -478,11 +487,22 @@ private:
 	bool m_received_ft;
 };
 
+PassiveForceControlNode *controller;
+
+void shutdownHandler(int sig)
+{
+    controller->restoreControllers();
+    ros::shutdown();
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "force_reactive_controller");
 
 	PassiveForceControlNode Controller;
+    controller = &Controller;
+
+    signal(SIGINT, shutdownHandler);
 
 	double frequency;
 	if (Controller.n_.hasParam("loop_rate"))
@@ -538,11 +558,11 @@ int main(int argc, char **argv)
 	std_srvs::Empty srv;
 	ros::service::call("/dumbo_safety_monitor/sleep", srv);
 
-	while(Controller.n_.ok())
+    while(ros::ok())
 	{
 		if((ros::Time::now()-begin).toSec()>=timeout.toSec())
 		{
-			ROS_INFO("Timed out, shutting down node...");
+            ROS_INFO("Timed out, shutting down node...");
 			return 0;
 		}
 
