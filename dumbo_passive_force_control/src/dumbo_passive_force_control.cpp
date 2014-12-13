@@ -34,11 +34,12 @@
 */
 
 #include <ros/ros.h>
-#include <brics_actuator/JointVelocities.h>
-#include <control_msgs/JointTrajectoryControllerState.h>
+#include <std_msgs/Float64MultiArray.h>
+#include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Vector3Stamped.h>
 #include <geometry_msgs/WrenchStamped.h>
 #include <geometry_msgs/Twist.h>
+#include <controller_manager_msgs/SwitchController.h>
 #include <kdl_wrapper/kdl_wrapper.h>
 #include <kdl_conversions/kdl_msg.h>
 #include <std_srvs/Empty.h>
@@ -56,6 +57,9 @@ public:
 	ros::Subscriber topicSub_JointState_;
     ros::Subscriber topicSub_ft_gravity_compensated_;
 
+    // service clients for switching Dumbo's controllers through the controller manager
+    ros::ServiceClient switch_controllers_client_;
+
 	ros::Time last_publish_time;
 
 
@@ -70,9 +74,25 @@ public:
 		getROSParameters();
 		if(isInitialized())
 		{
-			topicPub_CommandVel_ = n_.advertise<brics_actuator::JointVelocities>("command_vel", 1);
-			topicSub_JointState_ = n_.subscribe("state", 1, &PassiveForceControlNode::topicCallback_joint_states, this);
+            topicPub_CommandVel_ = n_.advertise<std_msgs::Float64MultiArray>("command_vel", 1);
+            topicSub_JointState_ = n_.subscribe("/joint_states", 1, &PassiveForceControlNode::topicCallback_joint_states, this);
             topicSub_ft_gravity_compensated_ = n_.subscribe("ft_gravity_compensated", 1, &PassiveForceControlNode::topicCallback_ft_gravity_compensated, this);
+            switch_controllers_client_ = n_.serviceClient<controller_manager_msgs::SwitchController>("/controller_manager/switch_controller");
+
+            // stop joint trajectory controller and start joint velocity controller
+            controller_manager_msgs::SwitchController switch_controller_srv;
+            switch_controller_srv.request.strictness = switch_controller_srv.request.STRICT;
+            switch_controller_srv.request.stop_controllers.resize(1);
+            switch_controller_srv.request.stop_controllers[0] = m_arm_select+"_arm_joint_trajectory_controller";
+            switch_controller_srv.request.start_controllers.resize(1);
+            switch_controller_srv.request.start_controllers[0] = m_arm_select+"_arm_joint_velocity_controller";
+
+            switch_controllers_client_.call(switch_controller_srv);
+
+            if(!switch_controller_srv.response.ok)
+            {
+                ROS_ERROR("Error stopping joint trajectory controller and starting joint velocity controller");
+            }
 		}
 
 
@@ -80,6 +100,20 @@ public:
 
 	~PassiveForceControlNode()
 	{
+        // restart joint trajectory controller and stop joint velocity controller
+        controller_manager_msgs::SwitchController switch_controller_srv;
+        switch_controller_srv.request.strictness = switch_controller_srv.request.STRICT;
+        switch_controller_srv.request.stop_controllers.resize(1);
+        switch_controller_srv.request.stop_controllers[0] = m_arm_select+"_arm_joint_velocity_controller";
+        switch_controller_srv.request.start_controllers.resize(1);
+        switch_controller_srv.request.start_controllers[0] = m_arm_select+"_arm_joint_trajectory_controller";
+
+        switch_controllers_client_.call(switch_controller_srv);
+
+        if(!switch_controller_srv.response.ok)
+        {
+            ROS_ERROR("Error stopping joint trajectory controller and starting joint velocity controller");
+        }
 	}
 
 
@@ -253,29 +287,23 @@ public:
 		m_received_ft = true;
 	}
 
-	void topicCallback_joint_states(const control_msgs::JointTrajectoryControllerStatePtr &msg)
+    void topicCallback_joint_states(const sensor_msgs::JointStatePtr &msg)
 	{
 		ROS_DEBUG("Received joint states");
 		std::vector<double> JointPos(m_DOF,0.0);
 
 		// search for joints in joint state msg
-		if(msg->actual.positions.size()==m_DOF)
-		{
-			for(unsigned int i=0; i<m_DOF; i++)
-			{
-				if(msg->joint_names[i]!=m_joint_names[i])
-				{
-					ROS_ERROR("Error in received joint name");
-					return;
-				}
-
-				else
-				{
-					 JointPos[i] = msg->actual.positions[i];
-				}
-			}
-
-		}
+        for(unsigned int joint_counter=0; joint_counter<m_DOF; joint_counter++)
+        {
+            for(unsigned int i=0; i<msg->name.size(); i++)
+            {
+                if(msg->name[i]==m_joint_names[joint_counter])
+                {
+                    JointPos[joint_counter] = msg->position[i];
+                    break;
+                }
+            }
+        }
 
 		m_joint_pos = JointPos;
 		m_joint_pos_stamp = msg->header.stamp;
@@ -381,15 +409,12 @@ public:
 			{
 				if(CalculateControlSignal(joint_vel))
 				{
-
-					brics_actuator::JointVelocities joint_vel_msg;
-					joint_vel_msg.velocities.resize(m_DOF);
+                    std_msgs::Float64MultiArray joint_vel_msg;
+                    joint_vel_msg.data.resize(m_DOF);
 
 					for(unsigned int i=0; i<m_DOF; i++)
 					{
-						joint_vel_msg.velocities[i].unit = "rad";
-						joint_vel_msg.velocities[i].joint_uri = m_joint_names[i].c_str();
-						joint_vel_msg.velocities[i].value = joint_vel.at(i);
+                        joint_vel_msg.data[i] = joint_vel.at(i);
 					}
 					topicPub_CommandVel_.publish(joint_vel_msg);
 					ROS_DEBUG("Velocity command");
@@ -518,7 +543,6 @@ int main(int argc, char **argv)
 		if((ros::Time::now()-begin).toSec()>=timeout.toSec())
 		{
 			ROS_INFO("Timed out, shutting down node...");
-			Controller.n_.shutdown();
 			return 0;
 		}
 
