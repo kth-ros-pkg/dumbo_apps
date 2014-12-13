@@ -1,12 +1,12 @@
 <package>
-  <name>dumbo_force_control</name>
+  <name>dumbo_apps</name>
   <version>0.1.0</version>
   <description>
-    Force control applications and force control node class for CVAP's Dumbo robot.
+    Apps and demos that can be run on CVAP's Dumbo robot
   </description>
   <license>BSD</license>
 
-  <url>http://wiki.ros.org/dumbo_force_control</url>
+  <url>http://wiki.ros.org/dumbo_apps</url>
 
   <author email="fevb@kth.se">Francisco Vina</author>
   <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
