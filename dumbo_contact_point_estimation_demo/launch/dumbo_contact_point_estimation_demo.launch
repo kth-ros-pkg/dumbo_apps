@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="arm" default="left"/>
+
+  <!-- launch the python script for running the demo -->
+  <node name="contact_point_estimation_demo" pkg="dumbo_contact_point_estimation_demo" type="dumbo_contact_point_estimation_demo" cwd="node" respawn="false" output="screen" />
+
+  <!-- launch rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dumbo_contact_point_estimation_demo)/config/dumbo_contact_point_estimation_demo.rviz" />
+
+  <!-- launch the contact point estimator -->
+  <node name="contact_point_estimation" pkg="contact_point_estimation" type="contact_point_estimation_node" cwd="node" respawn="false" >
+    <rosparam command="load" file="$(find contact_point_estimation)/config/contact_point_estimator.yaml"/>
+    <rosparam command="load" file="$(find contact_point_estimation)/config/surface_normal_estimator.yaml"/>
+    <remap from="/contact_point_estimation/ft_compensated" to="/$(arg arm)_arm_ft_sensor/gravity_compensation/ft_compensated"/>
+  </node>
+
+</launch>
