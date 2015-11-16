@@ -1,0 +1,198 @@
+#!/usr/bin/env python
+
+#   dumbo_contact_point_estimation_demo
+#
+#   Created on: May 26, 2014
+#   Authors:   Francisco Vina
+#             fevb <at> kth.se
+#
+
+#  Copyright (c) 2014, Francisco Vina, CVAP, KTH
+#    All rights reserved.
+
+#    Redistribution and use in source and binary forms, with or without
+#    modification, are permitted provided that the following conditions are met:
+#       * Redistributions of source code must retain the above copyright
+#         notice, this list of conditions and the following disclaimer.
+#       * Redistributions in binary form must reproduce the above copyright
+#         notice, this list of conditions and the following disclaimer in the
+#         documentation and/or other materials provided with the distribution.
+#       * Neither the name of KTH nor the
+#         names of its contributors may be used to endorse or promote products
+#         derived from this software without specific prior written permission.
+
+#    THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+#    ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+#    WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#    DISCLAIMED. IN NO EVENT SHALL KTH BE LIABLE FOR ANY
+#    DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#    (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+#    LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+#    ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#    (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+#    SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#
+import sys
+import rospy
+import moveit_commander
+from geometry_msgs.msg import PointStamped
+from std_srvs.srv import Empty
+from controller_manager.controller_manager_interface import SwitchController, SwitchControllerRequest
+
+
+import numpy
+from numpy import linalg
+
+
+p = numpy.array([0.0, 0.0, 0.0])
+
+def contact_point_callback(msg):
+
+    global p
+    p = numpy.array([msg.point.x, msg.point.y, msg.point.z])
+
+
+def main():
+    rospy.init_node('contact_point_estimation_demo')
+
+
+
+    contact_point_subscriber = rospy.Subscriber('/contact_point_estimation/contact_point_estimate',
+                                                PointStamped,
+                                                contact_point_callback)
+
+    ################### intialize arm position #########################
+
+
+
+    ##### initalize left arm joint trajectory controller
+
+    switch_controller_srv_name = '/controller_manager/switch_controller'
+
+    start_la_traj_controller_req = SwitchControllerRequest()
+    start_la_traj_controller_req.start_controllers = 'left_arm_joint_trajectory_controller'
+    start_la_traj_controller_req.strictness = 1
+
+    rospy.loginfo('[contact_point_estimation_demo]: waiting for switch_controller service')
+    rospy.wait_for_service(switch_controller_srv_name)
+
+    # start contact point estimator
+    try:
+        switch_controller_srv = rospy.ServiceProxy(switch_controller_srv_name, SwitchController)
+        switch_controller_srv(start_la_traj_controller_req)
+
+    except rospy.ServiceException, e:
+        rospy.logerr('Error starting left arm joint trajectory controller')
+        sys.exit(0)
+
+
+
+    # moveit_commander.roscpp_initialize(sys.argv)
+    left_arm = moveit_commander.MoveGroupCommander("left_arm")
+
+    rospy.sleep(0.5)
+
+    # move arm to joint position 1
+    q1_left = [0.33983537554740906, -1.103785753250122, -0.2787661552429199, -1.4815603494644165, 0.34517112374305725, 0.8535343408584595, 0.10593769699335098]
+
+
+
+    # move arms to position 1
+    rospy.loginfo('moving arms to initial joint position')
+    left_arm.set_joint_value_target(q1_left)
+    left_arm.go()
+
+
+    rospy.sleep(0.5)
+
+
+    ##### stop left arm joint trajectory controller
+
+
+    stop_la_traj_controller_req = SwitchControllerRequest()
+    stop_la_traj_controller_req.stop_controllers = 'left_arm_joint_trajectory_controller'
+    stop_la_traj_controller_req.strictness = 1
+
+
+    # start contact point estimator
+    try:
+        switch_controller_srv = rospy.ServiceProxy(switch_controller_srv_name, SwitchController)
+        switch_controller_srv(stop_la_traj_controller_req)
+
+    except rospy.ServiceException, e:
+        rospy.logerr('Error starting left arm joint trajectory controller')
+        sys.exit(0)
+
+
+    ################### calibrate F/T sensor bias #########################
+    ft_calibrate_bias_srv_name = '/left_arm_ft_sensor/gravity_compensation/calibrate_bias'
+
+    rospy.loginfo('[contact_point_estimation_demo]: calibrating bias on left_arm FT sensor')
+    rospy.wait_for_service(ft_calibrate_bias_srv_name)
+
+    try:
+        ft_calibrate_bias_srv = rospy.ServiceProxy(ft_calibrate_bias_srv_name, Empty)
+        ft_calibrate_bias_srv()
+
+    except rospy.ServiceException, e:
+        rospy.logerr('Error calibrating FT sensor bias')
+        sys.exit(0)
+
+
+    ################### start Contact Point Estimation #########################
+
+    # wait for contact point estimation start service
+    cpe_start_srv_name = "/contact_point_estimation/start"
+    cpe_stop_srv_name = "/contact_point_estimation/stop"
+
+    rospy.loginfo('waiting for contact point estimation start srv')
+    rospy.wait_for_service(cpe_start_srv_name)
+
+    # start contact point estimator
+    try:
+        start_cpe_srv = rospy.ServiceProxy(cpe_start_srv_name, Empty)
+        start_cpe_srv()
+
+    except rospy.ServiceException, e:
+        rospy.logerr('Error starting contact point estimation')
+        sys.exit(0)
+
+    rospy.loginfo('contact point estimation started')
+
+    # waiting for stop service
+    rospy.loginfo('waiting for contact point estimation stop srv')
+    rospy.wait_for_service(cpe_stop_srv_name)
+    rospy.loginfo('stop contact point estimation srv online')
+
+    stop_cpe_srv = rospy.ServiceProxy(cpe_stop_srv_name, Empty)
+
+
+
+    ################### start Contact Point Estimation #########################
+
+    r = rospy.Rate(600)
+
+
+    while not rospy.is_shutdown():
+
+        # if contact point estimator diverges too much, reset it
+        global p
+        if linalg.norm(p) > 2.0:
+
+            rospy.logwarn('contact point estimate diverging, resetting estimator')
+            p = numpy.array([0.0, 0.0, 0.0])
+            stop_cpe_srv()
+            # rospy.sleep(0.5)
+            start_cpe_srv()
+            # rospy.sleep(0.5)
+
+
+        r.sleep()
+
+if __name__ == "__main__":
+    main()
+
+
+
+
