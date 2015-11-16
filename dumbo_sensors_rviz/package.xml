@@ -1,0 +1,19 @@
+<package>
+ <name>dumbo_sensors_rviz</name>
+  <version>0.1.0</version>
+  <description>
+    Launch scripts for showing Primesense, Optoforce and Force-torque sensor in rviz
+  </description>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+  <license>BSD</license>
+
+  <url type="website">http://ros.org/wiki/dumbo_sensors_rviz</url>
+
+  <author email="fevb@kth.se">Francisco Vina</author>
+  <maintainer email="fevb@kth.se">Francisco Vina</maintainer>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+</package>
+
+

@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+
+  <arg name="arm" default="left"/>
+
+
+  <!-- launch rviz -->
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find dumbo_sensors_rviz)/config/dumbo_sensors_rviz.rviz" />
+
+  <!-- launch the primesense and optoforce -->
+  <include file="$(find dumbo_bringup)/components/primesense.launch" />
+  <include file="$(find dumbo_bringup)/components/optoforce.launch" />
+
+</launch>
